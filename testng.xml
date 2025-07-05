@@ -1,0 +1,57 @@
+name: Run TestNG Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build and Run Tests with Maven
+        run: mvn clean test
+
+      - name: Upload ExtentReports HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: extent-html-report
+          path: test-output/ExtentReports/
+
+      - name: Deploy ExtentReports to GitHub Pages
+        if: success()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: test-output/ExtentReports
+
+      - name: Upload TestNG Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: testng-reports
+          path: target/surefire-reports/
+
+      - name: Send failure email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: GitHub Actions Test Failure
+          body: Build failed. Check workflow logs and reports.
+          to: recipient@example.com
+          from: GitHub Actions <${{ secrets.EMAIL_USERNAME }}>
